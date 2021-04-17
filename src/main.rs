@@ -10,13 +10,13 @@ fn main() -> anyhow::Result<()> {
     let mut stdout = io::stdout();
 
     terminal::enable_raw_mode()?;
-    queue!(stdout, cursor::Hide)?;
+    queue!(stdout, cursor::Hide, terminal::EnterAlternateScreen)?;
 
     match opts {
         Opts::Snake => snake::run(&mut stdout)?,
     }
 
-    queue!(stdout, cursor::Show)?;
+    queue!(stdout, cursor::Show, terminal::LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
 
     Ok(())
