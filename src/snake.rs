@@ -9,10 +9,13 @@ const FRAME_RATE: f32 = 10.0;
 
 pub(crate) fn run(stdout: &mut io::Stdout) -> anyhow::Result<()> {
     let frame_delta = Duration::from_secs_f32(1.0 / FRAME_RATE);
-    let mut snake = Snake::default();
-    let mut food_locations = Vec::new();
-    let mut rng = rand::thread_rng();
     let screen_dimensions = terminal::size()?;
+    let mut rng = rand::thread_rng();
+    let mut snake = Snake::default();
+    let mut food_location = Coordinate {
+        x: rng.gen_range(0..screen_dimensions.0),
+        y: rng.gen_range(0..screen_dimensions.1),
+    };
 
     loop {
         queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
@@ -40,26 +43,24 @@ pub(crate) fn run(stdout: &mut io::Stdout) -> anyhow::Result<()> {
                     };
                 }
             }
-        }
+        };
 
-        if rng.gen_bool(0.1) {
-            food_locations.push(Coordinate {
+        let tick_record = snake.tick(food_location);
+
+        if tick_record.ate_food {
+            food_location = Coordinate {
                 x: rng.gen_range(0..screen_dimensions.0),
                 y: rng.gen_range(0..screen_dimensions.1),
-            });
+            }
         }
-
-        snake.tick(&mut food_locations);
 
         for segment in &snake.segments {
             queue!(stdout, cursor::MoveTo(segment.x, segment.y))?;
             write!(stdout, "x")?;
         }
 
-        for location in &food_locations {
-            queue!(stdout, cursor::MoveTo(location.x, location.y))?;
-            write!(stdout, "o")?;
-        }
+        queue!(stdout, cursor::MoveTo(food_location.x, food_location.y))?;
+        write!(stdout, "o")?;
 
         stdout.flush()?;
     }
@@ -86,21 +87,20 @@ impl Default for Snake {
 }
 
 impl Snake {
-    fn tick(&mut self, food_locations: &mut Vec<Coordinate>) {
+    fn tick(&mut self, food_location: Coordinate) -> TickRecord {
         self.segments
             .push_back(self.segments.back().unwrap().step_in(self.direction));
 
-        let eaten_food_idx = food_locations
-            .iter()
-            .enumerate()
-            .find_map(|(idx, loc)| (self.segments.back().unwrap() == loc).then(|| idx));
+        let ate_food = *self.segments.back().unwrap() == food_location;
 
-        if let Some(eaten_food_idx) = eaten_food_idx {
-            food_locations.remove(eaten_food_idx);
-        } else {
-            // in this case the snake did not eat any food,
-            // so we remove the end of the snake.
+        if !ate_food {
             self.segments.pop_front();
         }
+
+        TickRecord { ate_food }
     }
+}
+
+struct TickRecord {
+    ate_food: bool,
 }
