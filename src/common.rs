@@ -5,13 +5,15 @@ pub(crate) struct Coordinate {
 }
 
 impl Coordinate {
-    pub(crate) fn step_in(&mut self, direction: Direction) {
+    pub(crate) fn step_in(mut self, direction: Direction) -> Coordinate {
         match direction {
             Direction::Up => self.y -= 1,
             Direction::Down => self.y += 1,
             Direction::Left => self.x -= 1,
             Direction::Right => self.x += 1,
         }
+
+        self
     }
 }
 
