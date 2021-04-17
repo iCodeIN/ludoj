@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     queue!(stdout, cursor::Hide, terminal::EnterAlternateScreen)?;
 
     match opts {
-        Opts::Snake => snake::run(&mut stdout)?,
+        Opts::Snake => snake::run(io::stdout())?,
     }
 
     queue!(stdout, cursor::Show, terminal::LeaveAlternateScreen)?;

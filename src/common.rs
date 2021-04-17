@@ -17,7 +17,7 @@ impl Coordinate {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Direction {
     Up,
     Down,
