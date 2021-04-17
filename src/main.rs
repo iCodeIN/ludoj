@@ -1,3 +1,4 @@
+mod common;
 mod snake;
 
 use crossterm::{cursor, queue, terminal};
