@@ -1,5 +1,6 @@
 use crate::common::{Coordinate, Direction};
 use crossterm::{cursor, event, queue, terminal};
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::collections::VecDeque;
 use std::io::{self, Write};
@@ -9,17 +10,16 @@ const FRAME_RATE: f32 = 10.0;
 
 pub(crate) fn run(stdout: &mut io::Stdout) -> anyhow::Result<()> {
     let frame_delta = Duration::from_secs_f32(1.0 / FRAME_RATE);
+
     let screen_dimensions = terminal::size()?;
-    let mut rng = rand::thread_rng();
-    let mut snake = Snake::default();
-    let mut food_location = Coordinate {
-        x: rng.gen_range(0..screen_dimensions.0),
-        y: rng.gen_range(0..screen_dimensions.1),
+    let screen_dimensions = Coordinate {
+        x: screen_dimensions.0,
+        y: screen_dimensions.1,
     };
 
-    loop {
-        queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
+    let mut game = Game::new(screen_dimensions);
 
+    loop {
         if event::poll(frame_delta)? {
             let key_event = if let event::Event::Key(key_event) = event::read()? {
                 key_event
@@ -34,7 +34,7 @@ pub(crate) fn run(stdout: &mut io::Stdout) -> anyhow::Result<()> {
                 } => break,
 
                 event::KeyEvent { code, .. } => {
-                    snake.direction = match code {
+                    game.snake.direction = match code {
                         event::KeyCode::Up | event::KeyCode::Char('w') => Direction::Up,
                         event::KeyCode::Down | event::KeyCode::Char('s') => Direction::Down,
                         event::KeyCode::Left | event::KeyCode::Char('a') => Direction::Left,
@@ -45,27 +45,69 @@ pub(crate) fn run(stdout: &mut io::Stdout) -> anyhow::Result<()> {
             }
         };
 
-        let tick_record = snake.tick(food_location);
+        game.tick();
+        game.draw(stdout)?;
+    }
+
+    Ok(())
+}
+
+struct Game {
+    snake: Snake,
+    food_location: Coordinate,
+    rng: ThreadRng,
+    screen_dimensions: Coordinate,
+}
+
+impl Game {
+    fn new(screen_dimensions: Coordinate) -> Self {
+        let mut rng = rand::thread_rng();
+
+        Self {
+            snake: Snake::default(),
+            food_location: generate_food_location(&mut rng, screen_dimensions),
+            rng,
+            screen_dimensions,
+        }
+    }
+
+    fn tick(&mut self) {
+        let tick_record = self.snake.tick(self.food_location);
 
         if tick_record.ate_food {
-            food_location = Coordinate {
-                x: rng.gen_range(0..screen_dimensions.0),
-                y: rng.gen_range(0..screen_dimensions.1),
-            }
+            self.regenerate_food_location();
         }
+    }
 
-        for segment in &snake.segments {
+    fn draw(&self, stdout: &mut io::Stdout) -> anyhow::Result<()> {
+        queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
+
+        for segment in &self.snake.segments {
             queue!(stdout, cursor::MoveTo(segment.x, segment.y))?;
             write!(stdout, "x")?;
         }
 
-        queue!(stdout, cursor::MoveTo(food_location.x, food_location.y))?;
+        queue!(
+            stdout,
+            cursor::MoveTo(self.food_location.x, self.food_location.y),
+        )?;
         write!(stdout, "o")?;
 
         stdout.flush()?;
+
+        Ok(())
     }
 
-    Ok(())
+    fn regenerate_food_location(&mut self) {
+        self.food_location = generate_food_location(&mut self.rng, self.screen_dimensions);
+    }
+}
+
+fn generate_food_location(rng: &mut ThreadRng, screen_dimensions: Coordinate) -> Coordinate {
+    Coordinate {
+        x: rng.gen_range(0..screen_dimensions.x),
+        y: rng.gen_range(0..screen_dimensions.y),
+    }
 }
 
 struct Snake {
