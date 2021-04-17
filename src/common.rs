@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub(crate) struct Coordinate {
     pub(crate) x: u16,
     pub(crate) y: u16,
